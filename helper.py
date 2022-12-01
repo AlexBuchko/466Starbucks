@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.inspection import permutation_importance
 
 
-
-def sk_random_forest(X, t, ntrials, ntrees):
+def sk_random_forest(X, t, ntrials, ntrees, importance_metric="gini"):
     #Helper function for setting up and running a kdd algorithm
     RMSEs =  []
     sk_feature_results = {}
@@ -14,9 +14,14 @@ def sk_random_forest(X, t, ntrials, ntrees):
         classifier = RandomForestClassifier(n_estimators=ntrees).fit(X_train,t_train)
 
         #computing feature importance
+        if importance_metric == "gini":
+            importances = classifier.feature_importances_
+        elif importance_metric == "permutation":
+            importances = permutation_importance(classifier, X_test, t_test, random_state=trial).importances_mean
+
         for i in range(len(classifier.feature_names_in_)):
             feature = classifier.feature_names_in_[i]
-            importance = classifier.feature_importances_[i]
+            importance = importances[i] 
             if feature not in sk_feature_results:
                 sk_feature_results[feature] = [importance]
             else:
