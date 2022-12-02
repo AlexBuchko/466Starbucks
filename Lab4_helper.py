@@ -14,26 +14,36 @@ def entropy(y):
     e = -1 * sum([freq * math.log(freq, 2) for freq in frequencies])    
     return e
 
-def gain(y,x):
+
+def gain(y,x, type="classification"):
     g = 0
     # YOUR SOLUTION HERE
     possibleValues = x.unique()
-    weightedEntropies = []
+    weightedCriterions = []
     for value in possibleValues:
         xAtVal = x.loc[x == value]
         yAtVal = y.loc[x == value]
-        unweightedEntropy = entropy(yAtVal)
+        if type=="classification":
+            unweightedCriterion = entropy(yAtVal)
+        elif type=="regression":
+            unweightedCriterion = yAtVal.var()
         weight = xAtVal.size / x.size
-        weightedEntropies.append(weight * unweightedEntropy)
+        weightedCriterions.append(weight * unweightedCriterion)
         
-    g = sum(weightedEntropies)
+    g = sum(weightedCriterions)
+    if type == "classification":
+        origCriterion = entropy(y)
+    if type == "regression":
+        origCriterion = y.var()
 
-    return entropy(y) - g
+    return origCriterion - g
+
 
 def gain_ratio(y,x):
     # YOUR SOLUTION HERE
     g = gain(y, x)
     return g/entropy(y)
+
 
 def select_split(X,y):
     col = None
@@ -107,7 +117,7 @@ def generate_rules(tree):
 
     return rules
 
-def split_col(x, y):
+def split_col(x, y, type="classification"):
     x2 = list(x.unique())
     save_x = x.copy()
     x2.sort()
@@ -118,26 +128,32 @@ def split_col(x, y):
         splits.append((x2[i] + x2[i+1]) / 2)
     for split in splits:
         x = x.apply(lambda x: True if x < split else False)
-        g = gain_ratio(y, x)
+        if type == "classification":
+            g = gain_ratio(y, x)
+        elif type == "regression":
+            g = gain(y, x, type)
         if g > bestGain:
             bestGain, bestCol = g, x.copy().rename(f"{x.name}<{split}0")
             
         x = save_x.copy()
     return bestGain, bestCol
 
-def select_split2(X,y):
+def select_split2(X,y, type="classification"):
     # YOUR SOLUTION HERE
-    splitCols = list(map(lambda col: split_col(col[1], y), X.items()))
+    splitCols = list(map(lambda col: split_col(col[1], y, type), X.items()))
     splitCols.sort(key=lambda x: x[0], reverse=True)
     bestGr, splitCol = splitCols[0]
     
     return splitCol, bestGr
 
-def make_tree2(X,y,min_split_count=5, prevFeature = "", prevPrevFeature = ""):
+def make_tree2(X,y,min_split_count=2, prevFeature = "", prevPrevFeature = "", type="classification"):
     tree = {}
     # Your solution here
     differentYVals = y.unique()
-    defaultAns = y.value_counts().sort_values(ascending=False).index[0]
+    if type == "classification":
+        defaultAns = y.value_counts().sort_values(ascending=False).index[0]
+    elif type == "regression":
+        defaultAns = y.mean()
     if(differentYVals.size) == 1:
         return defaultAns
     if(X.shape[0] < min_split_count):
@@ -148,7 +164,7 @@ def make_tree2(X,y,min_split_count=5, prevFeature = "", prevPrevFeature = ""):
         return defaultAns
     #then we're in the recursive case
     #pick the field with the highest IG
-    bestFeature, rig = select_split2(X, y)
+    bestFeature, rig = select_split2(X, y, type)
     if rig <= 0.001:
         return defaultAns
     
